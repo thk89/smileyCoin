@@ -12,6 +12,8 @@
 
 #include <boost/filesystem/operations.hpp>
 
+#define ARRAY_LENGTH(a) (sizeof(a)/sizeof(a)[0])
+
 static bool AppInitRPC(int argc, char* argv[])
 {
     // Parameters
@@ -45,9 +47,8 @@ static bool AppInitRPC(int argc, char* argv[])
     return true;
 }
 
-int main(int argc, char* argv[])
-{
-    SetupEnvironment();
+int evaluateCommands(int argc, char *argv[]) {
+	int result = 0;
 
     try
     {
@@ -62,15 +63,69 @@ int main(int argc, char* argv[])
         return abs(RPC_MISC_ERROR);
     }
 
-    int ret = abs(RPC_MISC_ERROR);
+    result = abs(RPC_MISC_ERROR);
     try
     {
-        ret = CommandLineRPC(argc, argv);
+        result = CommandLineRPC(argc, argv);
     }
     catch (std::exception& e) {
         PrintExceptionContinue(&e, "CommandLineRPC()");
     } catch (...) {
         PrintExceptionContinue(NULL, "CommandLineRPC()");
     }
-    return ret;
+
+	return result;
+}
+
+int main(int argc, char* argv[])
+{
+	int result = 0;
+	bool interactive_repeat = false;
+    SetupEnvironment();
+
+	//NOTE: gera do while hér, sem heldur áfram ef beðið var um repl
+	
+	if(argc > 1) {
+		if(strcmp(argv[1], "interactive") == 0) {
+			interactive_repeat = true;
+		}
+	}
+
+	if(!interactive_repeat) {
+		result = evaluateCommands(argc, argv);
+	}else {
+		printf("Interactive Mode\n\n");
+
+		do {
+			printf("> ");
+			char line[4096];
+			char *arguments[32];
+
+			fgets(line, ARRAY_LENGTH(line), stdin);
+
+			char *token = strtok(line, " ");
+			int argument_count = 0;
+
+			if(strcmp(token, "quit\n") != 0) {
+				if(strcmp(token, "\n") != 0) {
+					do
+					{
+						arguments[argument_count] = token;
+						argument_count++;
+					}while((token = strtok(NULL, " ")));
+				}
+
+				printf("%d\n", argument_count);
+
+				//NOTE: + 1 þvi bitcoin core býst við að þettu séu 
+				//cmdline argument
+				result = evaluateCommands(argument_count+1, arguments);
+			}else {
+				interactive_repeat = false;
+			}
+		}while(interactive_repeat);
+	}
+
+
+	return result;
 }
