@@ -12,8 +12,6 @@
 
 #include <boost/filesystem/operations.hpp>
 
-#define ARRAY_LENGTH(a) (sizeof(a)/sizeof(a)[0])
-
 static bool AppInitRPC(int argc, char* argv[])
 {
     // Parameters
@@ -79,11 +77,12 @@ int evaluateCommands(int argc, char *argv[]) {
 
 int main(int argc, char* argv[])
 {
-	int result = 0;
+	int return_value = 0;
 	bool interactive_repeat = false;
     SetupEnvironment();
 
-	//NOTE: gera do while hér, sem heldur áfram ef beðið var um repl
+	//NOTE: * interactive json parameter, kannski táknað með -i
+	//		* robustness overhull
 	
 	if(argc > 1) {
 		if(strcmp(argv[1], "interactive") == 0) {
@@ -92,40 +91,47 @@ int main(int argc, char* argv[])
 	}
 
 	if(!interactive_repeat) {
-		result = evaluateCommands(argc, argv);
+		return_value = evaluateCommands(argc, argv);
 	}else {
-		printf("Interactive Mode\n\n");
+		printf("Interactive Mode(type quit to exit)\n\n");
 
-		do {
+		while(interactive_repeat) {
 			printf("> ");
-			char line[4096];
-			char *arguments[32];
+			std::vector<std::string> arguments;
+			std::string line;
+			std::getline(std::cin, line);
 
-			fgets(line, ARRAY_LENGTH(line), stdin);
+			std::istringstream lineStream(line);
+			std::string token;
 
-			char *token = strtok(line, " ");
-			int argument_count = 0;
+			//NOTE: gerum þetta þar sem fyrsta argumentið í argv er pwd
+			arguments.push_back("");
 
-			if(strcmp(token, "quit\n") != 0) {
-				if(strcmp(token, "\n") != 0) {
-					do
-					{
-						arguments[argument_count] = token;
-						argument_count++;
-					}while((token = strtok(NULL, " ")));
+			std::getline(lineStream, token, ' ');
+
+			//TODO: betri meðhöndlun á interactive specific argument-um
+			if(token != "quit") {
+				if(token != "") {
+					do {
+						//athuga hvort argument er -i og þá fara í eitthvað specific json string interactive mode
+						arguments.push_back(token);
+					}while(std::getline(lineStream, token, ' '));
+
+					unsigned int argument_count = 0;
+					char *c_arguments[arguments.size()];
+
+					for(; argument_count < arguments.size(); argument_count++) {
+						c_arguments[argument_count] = (char *)arguments[argument_count].c_str();
+					}
+
+					return_value = evaluateCommands(argument_count, c_arguments);
 				}
-
-				printf("%d\n", argument_count);
-
-				//NOTE: + 1 þvi bitcoin core býst við að þettu séu 
-				//cmdline argument
-				result = evaluateCommands(argument_count+1, arguments);
 			}else {
 				interactive_repeat = false;
 			}
-		}while(interactive_repeat);
+		}
 	}
 
 
-	return result;
+	return return_value;
 }
