@@ -12,6 +12,108 @@
 
 #include <boost/filesystem/operations.hpp>
 
+#include "linenoise.c"//notum þetta fyrir command history og tab completion
+
+#define arrayLength(a) (sizeof(a)/sizeof(a)[0])
+
+static const char *commands[] =
+{ 
+    /* Overall control/query calls */
+     "getinfo",
+     "help",
+     "stop",
+
+    /* P2P networking */
+     "getnetworkinfo",
+     "addnode",
+     "getaddednodeinfo",
+     "getconnectioncount",
+     "getnettotals",
+     "getpeerinfo",
+     "ping",
+
+    /* Block chain and UTXO */
+     "getaddressinfo",
+     "getrichaddresses",
+     "getblockchaininfo",
+     "getbestblockhash",
+     "getblockcount",
+     "getblock",
+     "getblockhash",
+     "getdifficulty",
+     "getrawmempool",
+     "gettxout",
+     "gettxoutsetinfo",
+     "verifychain",
+
+    /* Mining */
+     "getblocktemplate",
+     "getmininginfo",
+//    { "getnetworkhashps",       &getnetworkhashps,       true,      false,      false },
+     "submitblock",
+
+    /* Raw transactions */
+     "createrawtransaction",
+     "decoderawtransaction",
+     "decodescript",
+     "getrawtransaction",
+     "sendrawtransaction",
+     "signrawtransaction",
+
+    /* Utility functions */
+     "createmultisig",
+     "validateaddress",
+     "verifymessage",
+
+#ifdef ENABLE_WALLET
+    /* Wallet */
+     "addmultisigaddress",
+     "backupwallet",
+     "dumpprivkey",
+     "dumpwallet",
+     "encryptwallet",
+     "getaccountaddress",
+     "getaccount",
+     "getaddressesbyaccount",
+     "getbalance",
+     "getnewaddress",
+     "getrawchangeaddress",
+     "getreceivedbyaccount",
+     "getreceivedbyaddress",
+     "gettransaction",
+     "getunconfirmedbalance",
+     "getwalletinfo",
+     "importprivkey",
+     "importwallet",
+     "keypoolrefill",
+     "listaccounts",
+     "listaddressgroupings",
+     "listlockunspent",
+     "listreceivedbyaccount",
+     "listreceivedbyaddress",
+     "listsinceblock",
+     "listtransactions",
+     "listunspent",
+     "lockunspent",
+     "move",
+     "sendfrom",
+     "sendmany"
+     "sendtoaddress",
+     "setaccount",
+     "settxfee",
+     "signmessage",
+     "walletlock",
+     "walletpassphrasechange",
+     "walletpassphrase",
+
+    /* Wallet-enabled mining */
+     "getgenerate",
+     "gethashespersec",
+     "getwork",
+     "setgenerate",
+#endif // ENABLE_WALLET
+};
+
 static bool AppInitRPC(int argc, char* argv[])
 {
     // Parameters
@@ -75,86 +177,78 @@ int evaluateCommands(int argc, char *argv[]) {
 	return result;
 }
 
+void completion(const char *input, linenoiseCompletions *completions) {
+
+	for(int i = 0; i < arrayLength(commands); i++) {
+		const char *command = commands[i];
+		int inputIndex = 0;
+		bool substringMatch = true;
+
+		for(; input[inputIndex] != 0; inputIndex++) {
+			if(command[inputIndex] == 0) break;
+			if(input[inputIndex] != command[inputIndex]) {
+				substringMatch = false;
+				break;
+			}
+		}
+
+		if(substringMatch) linenoiseAddCompletion(completions, command);
+	}
+}
+
 int main(int argc, char* argv[])
 {
-	int return_value = 0;
-	bool interactive_repeat = false;
+	int returnValue = 0;
+	char *line;
+	char *historyFilename = ".cli_history";
 
     SetupEnvironment();
 
 	//NOTE: * 	interactive send
 	//		*	búa til contact-a
-	//		*	command buffer, geta scrollað í gegnum það með up og niður
 	//		*	robustness overhull
 	
-	if(argc > 1) {
-		if(strcmp(argv[1], "interactive") == 0) {
-			interactive_repeat = true;
-		}
-	}
 
-	if(!interactive_repeat) {
-		return_value = evaluateCommands(argc, argv);
-	}else {
-		std::vector<std::string> command_buffer;
+	if(argc > 1 && strcmp(argv[1], "interactive") == 0) {
 		printf("Interactive Mode(type quit to exit)\n\n");
 
-		while(interactive_repeat) {
-			printf("> ");
+		linenoiseHistoryLoad(historyFilename);
+    	linenoiseSetCompletionCallback(completion);
 
-			std::vector<std::string> arguments;
-			std::string line;
+		while((line = linenoise("> "))) {
+			char *arguments[32];
+			int argumentCount = 0;
 
-			//athuga örvatakka hér á milli
+			arguments[argumentCount++] = "";
 
-			std::getline(std::cin, line);
+			if(line[0] != 0) {
+				char *token = strtok(line, " ");
 
-			std::istringstream lineStream(line);
-			std::string token;
+				if(strcmp(token, "quit") != 0) {
+					if(strcmp(token, "clear") == 0) {
+						system("clear");
+						continue;
+					}
 
-			command_buffer.push_back(lineStream.str());
-
-			//NOTE: gerum þetta þar sem fyrsta argumentið í argv er pwd
-			arguments.push_back("");
-			std::getline(lineStream, token, ' ');
-
-			//TODO: betri meðhöndlun á interactive specific argument-um
-			if(token != "quit") {
-				if(token == "clear") {
-					system("clear");
-					continue;
-				}
-
-				if(token != "") {
 					do {
-						//athuga hvort argument er -i og þá fara í eitthvað specific json string interactive mode
-						arguments.push_back(token);
-					}while(std::getline(lineStream, token, ' '));
+						arguments[argumentCount++] = token;
+					}while((token = strtok(NULL, " ")));
 
-
-
-					unsigned int argument_count = 0;
-					char *c_arguments[arguments.size()];
-
-					for(; argument_count < arguments.size(); argument_count++) {
-						c_arguments[argument_count] = (char *)arguments[argument_count].c_str();
-					}
-
-					return_value = evaluateCommands(argument_count, c_arguments);
-
-					switch(return_value) {
-						case RPC_MISC_ERROR:
-						{
-						}
-						break;
-					}
+				}else {
+					break;
 				}
-			}else {
-				interactive_repeat = false;
 			}
+
+			returnValue = evaluateCommands(argumentCount, arguments);
+
+			linenoiseHistoryAdd(line);
+			linenoiseHistorySave(historyFilename);
+
+			free(line);
 		}
+	}else {
+		returnValue = evaluateCommands(argc, argv);
 	}
 
-
-	return return_value;
+	return returnValue;
 }
