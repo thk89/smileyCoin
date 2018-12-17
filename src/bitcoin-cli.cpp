@@ -79,10 +79,13 @@ int main(int argc, char* argv[])
 {
 	int return_value = 0;
 	bool interactive_repeat = false;
+
     SetupEnvironment();
 
-	//NOTE: * interactive json parameter, kannski táknað með -i
-	//		* robustness overhull
+	//NOTE: * 	interactive send
+	//		*	búa til contact-a
+	//		*	command buffer, geta scrollað í gegnum það með up og niður
+	//		*	robustness overhull
 	
 	if(argc > 1) {
 		if(strcmp(argv[1], "interactive") == 0) {
@@ -93,29 +96,42 @@ int main(int argc, char* argv[])
 	if(!interactive_repeat) {
 		return_value = evaluateCommands(argc, argv);
 	}else {
+		std::vector<std::string> command_buffer;
 		printf("Interactive Mode(type quit to exit)\n\n");
 
 		while(interactive_repeat) {
 			printf("> ");
+
 			std::vector<std::string> arguments;
 			std::string line;
+
+			//athuga örvatakka hér á milli
+
 			std::getline(std::cin, line);
 
 			std::istringstream lineStream(line);
 			std::string token;
 
+			command_buffer.push_back(lineStream.str());
+
 			//NOTE: gerum þetta þar sem fyrsta argumentið í argv er pwd
 			arguments.push_back("");
-
 			std::getline(lineStream, token, ' ');
 
 			//TODO: betri meðhöndlun á interactive specific argument-um
 			if(token != "quit") {
+				if(token == "clear") {
+					system("clear");
+					continue;
+				}
+
 				if(token != "") {
 					do {
 						//athuga hvort argument er -i og þá fara í eitthvað specific json string interactive mode
 						arguments.push_back(token);
 					}while(std::getline(lineStream, token, ' '));
+
+
 
 					unsigned int argument_count = 0;
 					char *c_arguments[arguments.size()];
@@ -125,6 +141,13 @@ int main(int argc, char* argv[])
 					}
 
 					return_value = evaluateCommands(argument_count, c_arguments);
+
+					switch(return_value) {
+						case RPC_MISC_ERROR:
+						{
+						}
+						break;
+					}
 				}
 			}else {
 				interactive_repeat = false;
