@@ -12,13 +12,13 @@
 
 #include <boost/filesystem/operations.hpp>
 
-//notum þetta fyrir command history og tab completion
+//used for command history and tab completion
 #include "linenoise.c"
 
-//macro sem gefur okkur lengdina á fylkjum sem hafa skilgreinda lengd á þýðingartíma
+//macro that returns the length of plain arrays
 #define arrayLength(a) (sizeof(a)/sizeof(a)[0])
 
-//fylki af öllum skipunum, tekið úr rpcserver.cpp
+//array of all the cli commands, taken from rpcserver.cpp
 static const char *commands[] =
 { 
     /* Overall control/query calls */
@@ -149,8 +149,8 @@ static bool AppInitRPC(int argc, char* argv[])
     return true;
 }
 
-//Þetta er upprunnalega virkni main fallsins, hún er hér þar sem kallað
-//er á hann í hvert skipti sem smileycoin-cli er gefin skipun.
+//This is the functionality of the original main function.
+//It is here so we can call it with or without interactive mode.
 int evaluateCommands(int argc, char *argv[])
 {
 	int result = 0;
@@ -182,7 +182,7 @@ int evaluateCommands(int argc, char *argv[])
 	return result;
 }
 
-//fall sem linenoise kallar á þegar þarf að gera tab completion
+//A callback function for linenoise on tab completion
 void completion(const char *input, linenoiseCompletions *completions)
 {
 	for(unsigned int i = 0; i < arrayLength(commands); i++)
@@ -215,9 +215,9 @@ int main(int argc, char* argv[])
 	if(argc > 1 && strcmp(argv[1], "interactive") == 0)
 	{
 		printf("Interactive Mode(type quit to exit)\n\n");
-
+		
 		linenoiseHistoryLoad(historyFilename);
-    		linenoiseSetCompletionCallback(completion);
+		linenoiseSetCompletionCallback(completion);
 
 		while((line = linenoise("> ")))
 		{
@@ -229,9 +229,25 @@ int main(int argc, char* argv[])
 				char *token = strtok(line, " ");
 
 				if(strcmp(token, "quit") == 0) break;
+
 				if(strcmp(token, "clear") == 0)
 				{
 					system("clear");
+					continue;
+				}
+
+				if(strcmp(token, "history") == 0)
+				{
+					FILE *historyFile = fopen(historyFilename, "r");
+
+					char buffer[4096];
+
+					while((fgets(buffer, arrayLength(buffer), historyFile)) != NULL)
+					{
+						printf("%s", buffer);
+					}
+
+					fclose(historyFile);
 					continue;
 				}
 
