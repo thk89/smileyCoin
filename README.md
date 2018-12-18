@@ -32,8 +32,3 @@ The library used for command history and tab completion is not written to be
 compatable with c++, so some edits had to be made in order to get it to compile.
 
 All of the code changes can be found in bitcoin-cli.cpp
-
-Community
----------
-
-https://bitcointalk.org/index.php?topic=845761.0;all
