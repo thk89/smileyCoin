@@ -12,10 +12,13 @@
 
 #include <boost/filesystem/operations.hpp>
 
-#include "linenoise.c"//notum þetta fyrir command history og tab completion
+//notum þetta fyrir command history og tab completion
+#include "linenoise.c"
 
+//macro sem gefur okkur lengdina á fylkjum sem hafa skilgreinda lengd á þýðingartíma
 #define arrayLength(a) (sizeof(a)/sizeof(a)[0])
 
+//fylki af öllum skipunum, tekið úr rpcserver.cpp
 static const char *commands[] =
 { 
     /* Overall control/query calls */
@@ -49,7 +52,6 @@ static const char *commands[] =
     /* Mining */
      "getblocktemplate",
      "getmininginfo",
-//    { "getnetworkhashps",       &getnetworkhashps,       true,      false,      false },
      "submitblock",
 
     /* Raw transactions */
@@ -147,7 +149,10 @@ static bool AppInitRPC(int argc, char* argv[])
     return true;
 }
 
-int evaluateCommands(int argc, char *argv[]) {
+//Þetta er upprunnalega virkni main fallsins, hún er hér þar sem kallað
+//er á hann í hvert skipti sem smileycoin-cli er gefin skipun.
+int evaluateCommands(int argc, char *argv[])
+{
 	int result = 0;
 
     try
@@ -177,16 +182,19 @@ int evaluateCommands(int argc, char *argv[]) {
 	return result;
 }
 
-void completion(const char *input, linenoiseCompletions *completions) {
-
-	for(int i = 0; i < arrayLength(commands); i++) {
+//fall sem linenoise kallar á þegar þarf að gera tab completion
+void completion(const char *input, linenoiseCompletions *completions)
+{
+	for(unsigned int i = 0; i < arrayLength(commands); i++)
+	{
 		const char *command = commands[i];
-		int inputIndex = 0;
 		bool substringMatch = true;
 
-		for(; input[inputIndex] != 0; inputIndex++) {
+		for(int inputIndex = 0; input[inputIndex] != 0; inputIndex++)
+		{
 			if(command[inputIndex] == 0) break;
-			if(input[inputIndex] != command[inputIndex]) {
+			if(input[inputIndex] != command[inputIndex])
+			{
 				substringMatch = false;
 				break;
 			}
@@ -199,47 +207,40 @@ void completion(const char *input, linenoiseCompletions *completions) {
 int main(int argc, char* argv[])
 {
 	int returnValue = 0;
-	char *line;
-	char *historyFilename = ".cli_history";
+	char *line = NULL;
+	const char *historyFilename = ".cli_history";
 
     SetupEnvironment();
-
-	//NOTE: * 	interactive send
-	//		*	búa til contact-a
-	//		*	robustness overhull
 	
-
-	if(argc > 1 && strcmp(argv[1], "interactive") == 0) {
+	if(argc > 1 && strcmp(argv[1], "interactive") == 0)
+	{
 		printf("Interactive Mode(type quit to exit)\n\n");
 
 		linenoiseHistoryLoad(historyFilename);
     	linenoiseSetCompletionCallback(completion);
 
-		while((line = linenoise("> "))) {
-			char *arguments[32];
-			int argumentCount = 0;
+		while((line = linenoise("> ")))
+		{
+			std::vector<char *> arguments;
+			arguments.push_back((char *)"");
 
-			arguments[argumentCount++] = "";
-
-			if(line[0] != 0) {
+			if(line[0] != 0)
+			{
 				char *token = strtok(line, " ");
 
-				if(strcmp(token, "quit") != 0) {
-					if(strcmp(token, "clear") == 0) {
-						system("clear");
-						continue;
-					}
-
-					do {
-						arguments[argumentCount++] = token;
-					}while((token = strtok(NULL, " ")));
-
-				}else {
-					break;
+				if(strcmp(token, "quit") == 0) break;
+				if(strcmp(token, "clear") == 0)
+				{
+					system("clear");
+					continue;
 				}
+
+				do {
+					arguments.push_back(token);
+				}while((token = strtok(NULL, " ")));
 			}
 
-			returnValue = evaluateCommands(argumentCount, arguments);
+			returnValue = evaluateCommands(arguments.size(), arguments.data());
 
 			linenoiseHistoryAdd(line);
 			linenoiseHistorySave(historyFilename);
