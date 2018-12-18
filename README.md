@@ -25,10 +25,11 @@ using this tool.
 
 Initally the idea was also to add some interactivity to some commands but due to
 time mismanagement and the fact that implementing the command history and tab
-completion was headache until we found a library that did the job, we had to
+completion was a headache until we found a library that did the job, we had to
 cut some corners.
 There are 2 extra commands provided, clear and history. Clear clears the terminal screen and history prints a list of recent commands.
 The library used for command history and tab completion is not written to be
 compatable with c++, so some edits had to be made in order to get it to compile.
+No linking needs to be done in order to use this library, as it is self contained in the files linenoise.h and linenoise.c.
 
-All of the code changes can be found in bitcoin-cli.cpp
+All of the code changes can be found in bitcoin-cli.cpp.
