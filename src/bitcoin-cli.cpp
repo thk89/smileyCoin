@@ -217,7 +217,7 @@ int main(int argc, char* argv[])
 		printf("Interactive Mode(type quit to exit)\n\n");
 
 		linenoiseHistoryLoad(historyFilename);
-    	linenoiseSetCompletionCallback(completion);
+    		linenoiseSetCompletionCallback(completion);
 
 		while((line = linenoise("> ")))
 		{
